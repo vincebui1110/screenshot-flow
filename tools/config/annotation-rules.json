@@ -1,0 +1,53 @@
+{
+  "decision_matrix": {
+    "annotate": {
+      "verbs": ["click", "select", "toggle", "enable", "disable", "check", "uncheck", "enter", "type", "upload", "drag", "choose", "pick", "switch", "activate", "deactivate", "turn on", "turn off", "press"],
+      "description": "User interacts with a specific UI element → annotate with red rect + arrow"
+    },
+    "plain": {
+      "verbs": ["navigate", "go to", "open", "view", "see", "review", "confirm", "verify", "check", "look at", "notice", "observe", "find"],
+      "description": "User observes or navigates → plain screenshot, no annotation"
+    },
+    "skip": {
+      "verbs": ["wait", "loading", "think", "understand", "remember", "note"],
+      "description": "Transient or cognitive steps → no screenshot needed"
+    }
+  },
+  "selector_inference": {
+    "bold_text_to_selector": {
+      "pattern": "**TEXT**",
+      "output": "button:has-text('TEXT'), [aria-label='TEXT'], :text('TEXT')"
+    },
+    "polaris_components": {
+      "button": ".Polaris-Button",
+      "select": ".Polaris-Select",
+      "text_field": ".Polaris-TextField",
+      "checkbox": ".Polaris-Checkbox",
+      "toggle": ".Polaris-SettingToggle, [role='switch']",
+      "card": ".Polaris-Card, .Polaris-LegacyCard",
+      "tab": "[role='tab']",
+      "banner": ".Polaris-Banner",
+      "modal": ".Polaris-Modal-Dialog",
+      "page": ".Polaris-Page"
+    },
+    "shopify_admin": {
+      "sidebar": "nav[aria-label='Main']",
+      "app_iframe": "iframe[name='app-iframe']",
+      "save_bar": ".Polaris-Frame__ContextualSaveBar",
+      "top_bar": ".Polaris-TopBar"
+    }
+  },
+  "content_density": {
+    "max_annotated_per_article": 8,
+    "target_ratio": "60% annotated, 30% plain, 10% skip",
+    "first_step": "plain (establish context)",
+    "last_step_save": "annotate (important action)"
+  },
+  "apps": {
+    "_comment": "Điền app của bạn theo mẫu: { \"<code>\": { \"admin_url\": \"https://admin.shopify.com/store/<STORE_HANDLE>/apps/<APP_HANDLE>\", \"app_domain\": \"<optional>\" } }",
+    "example": {
+      "admin_url": "https://admin.shopify.com/store/<STORE_HANDLE>/apps/<APP_HANDLE>",
+      "app_domain": "<optional-app-domain>"
+    }
+  }
+}

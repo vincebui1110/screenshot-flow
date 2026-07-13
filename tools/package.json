@@ -1,0 +1,14 @@
+{
+  "name": "claude-screenshot-tools",
+  "version": "1.0.0",
+  "description": "Screenshot capture + annotation tools for help center articles — Playwright CDP + Sharp",
+  "type": "commonjs",
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "playwright": "^1.58.0",
+    "rough-notation": "^0.5.1",
+    "roughjs": "^4.6.6",
+    "satori": "^0.26.0",
+    "sharp": "^0.33.0"
+  }
+}
