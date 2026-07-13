@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Crop Top Tool</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff; padding: 20px; }
+h2 { margin-bottom: 10px; }
+.workspace { display: flex; gap: 20px; align-items: flex-start; }
+.img-container { position: relative; flex: 1; min-width: 0; }
+.img-container canvas { display: block; width: 100%; cursor: row-resize; border-radius: 8px; }
+.sidebar { width: 300px; flex-shrink: 0; }
+.card { background: #222; padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 13px; }
+.card h3 { font-size: 14px; margin-bottom: 8px; color: #E8364F; }
+.btn { padding: 8px 16px; border: none; color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; margin-right: 6px; margin-top: 6px; }
+.btn-save { background: #4CAF50; }
+.btn-copy { background: #2196F3; }
+.instructions { background: #333; padding: 12px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; line-height: 1.6; }
+.coords { font-family: monospace; font-size: 14px; color: #fff; margin: 8px 0; }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.tab { padding: 6px 12px; background: #333; border: 2px solid transparent; color: #ccc; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.tab.active { background: #E8364F; color: #fff; }
+</style>
+</head>
+<body>
+<h2>Crop Top Tool</h2>
+<div class="instructions">
+  Click on the image to set the crop line (red horizontal line). Everything ABOVE the line will be removed.<br>
+  Check multiple tabs to make sure the crop point works for all images. Click <strong>Copy</strong> when done.
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="workspace">
+  <div class="img-container">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div class="sidebar">
+    <div class="card">
+      <h3>Crop Y Position</h3>
+      <div class="coords" id="coordsDisplay">Click on image to set crop line</div>
+      <div style="margin-top:8px; font-size:12px; color:#aaa;" id="sizeInfo"></div>
+      <button class="btn btn-copy" onclick="copyY()">Copy cropY value</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const images = [
+  { label: 'Report Step 1', file: 'images/raw/tab-1.png' },
+  { label: 'Report Step 4 (modal)', file: 'images/raw/tab-3.png' },
+  { label: 'Settings Step 1', file: 'images/raw/tab-settings1.png' },
+  { label: 'Settings Step 5 (save bar)', file: 'images/raw/tab-8.png' },
+];
+
+let currentImg = null;
+let cropY = 110;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const coordsEl = document.getElementById('coordsDisplay');
+const sizeEl = document.getElementById('sizeInfo');
+const tabsEl = document.getElementById('tabs');
+
+images.forEach((im, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'tab' + (i === 0 ? ' active' : '');
+  btn.textContent = im.label;
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach((t, idx) => t.classList.toggle('active', idx === i));
+    loadImage(im.file);
+  };
+  tabsEl.appendChild(btn);
+});
+
+function loadImage(src) {
+  const img = new Image();
+  img.onload = () => {
+    currentImg = img;
+    canvas.width = img.width;
+    canvas.height = img.height;
+    redraw();
+  };
+  img.src = src;
+}
+
+function redraw() {
+  if (!currentImg) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(currentImg, 0, 0);
+
+  // Dark overlay above crop line
+  ctx.fillStyle = 'rgba(255,0,0,0.15)';
+  ctx.fillRect(0, 0, canvas.width, cropY);
+
+  // Crop line
+  ctx.strokeStyle = '#E8364F';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 5]);
+  ctx.beginPath();
+  ctx.moveTo(0, cropY);
+  ctx.lineTo(canvas.width, cropY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Label
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillStyle = '#E8364F';
+  ctx.fillText('cropY = ' + cropY, 10, cropY - 8);
+
+  const newH = canvas.height - cropY;
+  coordsEl.textContent = 'cropY = ' + cropY;
+  sizeEl.textContent = `Original: ${canvas.width}x${canvas.height} → Cropped: ${canvas.width}x${newH}`;
+}
+
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  cropY = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
+  redraw();
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const y = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
+  canvas.title = 'y = ' + y;
+});
+
+function copyY() {
+  navigator.clipboard.writeText(String(cropY));
+  alert('Copied: cropY = ' + cropY);
+}
+
+loadImage(images[0].file);
+</script>
+</body>
+</html>
