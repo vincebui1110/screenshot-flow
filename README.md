@@ -51,7 +51,7 @@ key vào file nào.
   cp -R skills/screenshot ~/.claude/skills/
   ```
   → mọi path `~/.claude/tools/...` trong SKILL.md chạy nguyên.
-- **B. Standalone**: chạy trực tiếp từ thư mục gói, ví dụ `node tools/capture.js run goto url`.
+- **B. Standalone**: chạy trực tiếp từ thư mục gói, ví dụ `node tools/capture.js run url`.
 
 ---
 
