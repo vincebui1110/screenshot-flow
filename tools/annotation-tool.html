@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Annotation Tool v2</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff; padding: 20px; }
+h2 { margin-bottom: 10px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.tab { padding: 6px 12px; background: #333; border: 2px solid transparent; color: #ccc; border-radius: 6px; cursor: pointer; font-size: 11px; }
+.tab.active { background: #E8364F; color: #fff; }
+.tab.done { border-color: #4CAF50; }
+.workspace { display: flex; gap: 20px; align-items: flex-start; }
+.img-container { flex: 1; min-width: 0; }
+.img-container canvas { display: block; width: 100%; cursor: crosshair; border-radius: 8px; }
+.sidebar { width: 340px; flex-shrink: 0; }
+.card { background: #222; padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 13px; }
+.card h3 { font-size: 14px; margin-bottom: 8px; color: #E8364F; }
+.btn { padding: 6px 14px; border: none; color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; margin-right: 4px; margin-top: 4px; }
+.btn-add { background: #4CAF50; }
+.btn-undo { background: #ff9800; }
+.btn-clear { background: #f44336; }
+.btn-copy { background: #2196F3; }
+.box-list { font-family: monospace; font-size: 11px; color: #aaa; margin: 6px 0; max-height: 200px; overflow-y: auto; }
+.box-item { padding: 3px 0; border-bottom: 1px solid #333; }
+.box-item .type { color: #E8364F; font-weight: bold; }
+.box-item .type.blur { color: #2196F3; }
+.mode-toggle { display: flex; gap: 8px; margin-bottom: 8px; }
+.mode-btn { padding: 6px 14px; border: 2px solid #555; background: transparent; color: #ccc; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.mode-btn.active { border-color: #E8364F; color: #fff; background: #E8364F; }
+.mode-btn.blur-mode.active { border-color: #2196F3; background: #2196F3; }
+</style>
+</head>
+<body>
+<h2>Annotation Tool v2 — Cropped Images</h2>
+<div class="tabs" id="tabs"></div>
+<div class="workspace">
+  <div class="img-container">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div class="sidebar">
+    <div class="card">
+      <h3 id="currentLabel">-</h3>
+      <div class="mode-toggle">
+        <button class="mode-btn active" onclick="setMode('highlight')" id="modeHighlight">Highlight (red box)</button>
+        <button class="mode-btn blur-mode" onclick="setMode('blur')" id="modeBlur">Blur (blue box)</button>
+      </div>
+      <div id="coordsDisplay" style="font-family:monospace;font-size:12px;color:#aaa;margin:6px 0;">Draw on image...</div>
+      <button class="btn btn-add" onclick="saveBox()">Add Box</button>
+      <button class="btn btn-undo" onclick="undoBox()">Undo Last</button>
+      <button class="btn btn-clear" onclick="clearAll()">Clear All</button>
+    </div>
+    <div class="card">
+      <h3>Boxes for this image</h3>
+      <div class="box-list" id="boxList">None</div>
+    </div>
+    <div class="card">
+      <h3>All Images Status</h3>
+      <div id="statusList" style="font-size:11px;line-height:1.8;"></div>
+      <button class="btn btn-copy" onclick="copyAll()">Copy All JSON</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const images = [
+  { id: 'report-step1', label: 'R1: Reports page', file: 'images/raw/tab-1-crop.png', output: 'manage-reports/step1-reports-page.png' },
+  { id: 'report-step2', label: 'R2: Filter tabs', file: 'images/raw/tab-2-crop.png', output: 'manage-reports/step2-filter-tabs.png' },
+  { id: 'report-step4', label: 'R4: Status dropdown', file: 'images/raw/tab-3-crop.png', output: 'manage-reports/step4-status-table.png' },
+  { id: 'report-step5', label: 'R5: Internal notes', file: 'images/raw/tab-3-crop.png', output: 'manage-reports/step5-internal-notes.png' },
+  { id: 'report-step6', label: 'R6: Bulk actions', file: 'images/raw/tab-4-crop.png', output: 'manage-reports/step6-bulk-actions.png' },
+  { id: 'settings-step1', label: 'S1: Email row', file: 'images/raw/tab-s1-crop.png', output: 'report-settings/step1-settings-page.png' },
+  { id: 'settings-step2', label: 'S2: Editor', file: 'images/raw/tab-5-crop.png', output: 'report-settings/step3-edit-content.png' },
+  { id: 'settings-step3', label: 'S3: Preview', file: 'images/raw/tab-6-crop.png', output: 'report-settings/step4-preview.png' },
+  { id: 'settings-step4', label: 'S4: Send test', file: 'images/raw/tab-7-crop.png', output: 'report-settings/step5-send-test.png' },
+  { id: 'settings-step5', label: 'S5: Save bar', file: 'images/raw/tab-8-crop.png', output: 'report-settings/step6-save.png' },
+];
+
+let savedData = {};
+try { savedData = JSON.parse(localStorage.getItem('annotV2') || '{}'); } catch(e) {}
+
+let currentIdx = 0;
+let currentImg = null;
+let drawing = false;
+let startX = 0, startY = 0;
+let tempBox = null;
+let mode = 'highlight'; // 'highlight' or 'blur'
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const tabsEl = document.getElementById('tabs');
+const labelEl = document.getElementById('currentLabel');
+const coordsEl = document.getElementById('coordsDisplay');
+const boxListEl = document.getElementById('boxList');
+const statusEl = document.getElementById('statusList');
+
+images.forEach((im, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'tab';
+  btn.textContent = im.label;
+  btn.onclick = () => switchTab(i);
+  btn.id = 'tab-' + i;
+  tabsEl.appendChild(btn);
+});
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('modeHighlight').classList.toggle('active', m === 'highlight');
+  document.getElementById('modeBlur').classList.toggle('active', m === 'blur');
+}
+
+function getBoxes() {
+  return savedData[images[currentIdx].id] || [];
+}
+
+function setBoxes(arr) {
+  savedData[images[currentIdx].id] = arr;
+  localStorage.setItem('annotV2', JSON.stringify(savedData));
+}
+
+function switchTab(i) {
+  currentIdx = i;
+  tempBox = null;
+  labelEl.textContent = images[i].label;
+  updateTabStyles();
+  loadImage(images[i].file);
+}
+
+function updateTabStyles() {
+  images.forEach((im, i) => {
+    const btn = document.getElementById('tab-' + i);
+    btn.className = 'tab';
+    if (i === currentIdx) btn.classList.add('active');
+    if ((savedData[im.id] || []).length > 0) btn.classList.add('done');
+  });
+  updateBoxList();
+  updateStatus();
+}
+
+function loadImage(src) {
+  const img = new Image();
+  img.onload = () => {
+    currentImg = img;
+    canvas.width = img.width;
+    canvas.height = img.height;
+    redraw();
+  };
+  img.src = src;
+}
+
+function redraw() {
+  if (!currentImg) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(currentImg, 0, 0);
+
+  // Draw saved boxes
+  const boxes = getBoxes();
+  boxes.forEach((b, i) => {
+    if (b.type === 'blur') {
+      ctx.fillStyle = 'rgba(33,150,243,0.25)';
+      ctx.fillRect(b.x, b.y, b.width, b.height);
+      ctx.strokeStyle = '#2196F3';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 3]);
+      ctx.strokeRect(b.x, b.y, b.width, b.height);
+      ctx.setLineDash([]);
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#2196F3';
+      ctx.fillText('BLUR ' + (i+1), b.x + 4, b.y - 4);
+    } else {
+      ctx.strokeStyle = '#4CAF50';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+      ctx.strokeRect(b.x, b.y, b.width, b.height);
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#4CAF50';
+      ctx.fillText('BOX ' + (i+1), b.x + 4, b.y - 4);
+    }
+  });
+
+  // Draw temp box
+  if (tempBox) {
+    const isBlur = mode === 'blur';
+    ctx.fillStyle = isBlur ? 'rgba(33,150,243,0.15)' : 'rgba(232,54,79,0.15)';
+    ctx.fillRect(tempBox.x, tempBox.y, tempBox.width, tempBox.height);
+    ctx.strokeStyle = isBlur ? '#2196F3' : '#E8364F';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 4]);
+    ctx.strokeRect(tempBox.x, tempBox.y, tempBox.width, tempBox.height);
+    ctx.setLineDash([]);
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = isBlur ? '#2196F3' : '#E8364F';
+    ctx.fillText(`${tempBox.width}x${tempBox.height}`, tempBox.x + 4, tempBox.y - 4);
+  }
+}
+
+function getCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (canvas.width / rect.width),
+    y: (e.clientY - rect.top) * (canvas.height / rect.height)
+  };
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  const pos = getCoords(e);
+  startX = pos.x; startY = pos.y;
+  drawing = true;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!drawing) return;
+  const pos = getCoords(e);
+  tempBox = {
+    x: Math.round(Math.min(startX, pos.x)),
+    y: Math.round(Math.min(startY, pos.y)),
+    width: Math.round(Math.abs(pos.x - startX)),
+    height: Math.round(Math.abs(pos.y - startY))
+  };
+  redraw();
+  coordsEl.innerHTML = `<strong>${mode}:</strong> x=${tempBox.x} y=${tempBox.y} w=${tempBox.width} h=${tempBox.height}`;
+});
+
+canvas.addEventListener('mouseup', () => {
+  drawing = false;
+  if (tempBox && tempBox.width > 5 && tempBox.height > 5) {
+    coordsEl.innerHTML += '<br>Click <strong>Add Box</strong> to save';
+  } else {
+    tempBox = null;
+    redraw();
+  }
+});
+
+function saveBox() {
+  if (!tempBox) { alert('Draw a box first!'); return; }
+  const boxes = getBoxes();
+  boxes.push({ ...tempBox, type: mode });
+  setBoxes(boxes);
+  tempBox = null;
+  redraw();
+  updateTabStyles();
+  coordsEl.innerHTML = '<strong style="color:#4CAF50">Added!</strong> Draw another or switch tab.';
+}
+
+function undoBox() {
+  const boxes = getBoxes();
+  if (boxes.length === 0) return;
+  boxes.pop();
+  setBoxes(boxes);
+  tempBox = null;
+  redraw();
+  updateTabStyles();
+}
+
+function clearAll() {
+  setBoxes([]);
+  tempBox = null;
+  redraw();
+  updateTabStyles();
+}
+
+function updateBoxList() {
+  const boxes = getBoxes();
+  if (boxes.length === 0) { boxListEl.innerHTML = 'None'; return; }
+  boxListEl.innerHTML = boxes.map((b, i) =>
+    `<div class="box-item"><span class="type ${b.type}">${b.type.toUpperCase()}</span> #${i+1}: (${b.x},${b.y}) ${b.width}x${b.height}</div>`
+  ).join('');
+}
+
+function updateStatus() {
+  let html = '';
+  images.forEach(im => {
+    const boxes = savedData[im.id] || [];
+    const hCount = boxes.filter(b => b.type === 'highlight').length;
+    const bCount = boxes.filter(b => b.type === 'blur').length;
+    if (boxes.length > 0) {
+      html += `<div style="color:#4CAF50">✓ ${im.label}: ${hCount} highlight${bCount ? ', ' + bCount + ' blur' : ''}</div>`;
+    } else {
+      html += `<div style="color:#666">○ ${im.label}</div>`;
+    }
+  });
+  const done = images.filter(im => (savedData[im.id] || []).length > 0).length;
+  html += `<div style="margin-top:6px;color:#fff"><strong>${done}/${images.length}</strong></div>`;
+  statusEl.innerHTML = html;
+}
+
+function copyAll() {
+  const result = images.map(im => ({
+    id: im.id,
+    label: im.label,
+    file: im.file,
+    output: im.output,
+    boxes: savedData[im.id] || []
+  }));
+  navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+  alert('Copied!');
+}
+
+switchTab(0);
+</script>
+</body>
+</html>
