@@ -138,7 +138,7 @@ CHROME_DEBUG_PROFILE="$HOME/.chrome-store2" CDP_PORT=9333 \
 ```
 README.md                         ← file này
 install.sh                        ← cài deps + tạo profile
-skills/screenshot/SKILL.md        ← hướng dẫn luồng (đã genericize, không còn store Avada)
+skills/screenshot/SKILL.md        ← hướng dẫn luồng (đã genericize — không gắn store cụ thể)
 tools/capture.js                  ← điều khiển Chrome CDP + annotate in-DOM (đã patch đa nền + env)
 tools/annotate.js                 ← engine khung pastel (satori/sharp)
 tools/compose.js                  ← ghép nhiều ảnh 1 khung
